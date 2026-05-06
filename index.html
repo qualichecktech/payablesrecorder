@@ -422,6 +422,38 @@
     background-repeat: no-repeat; background-position: right 13px center;
     padding-right: 36px;
   }
+  .payment-type-row {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-top: 6px;
+  }
+  .payment-type-btn {
+    flex: 1 1 120px;
+    min-width: 120px;
+    border: 1.5px solid #d6d8dc;
+    border-radius: 12px;
+    background: #f8f9fb;
+    color: #262a34;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.22s, color 0.22s, border-color 0.22s, transform 0.18s;
+    text-align: center;
+    outline: none;
+  }
+  .payment-type-btn:hover {
+    background: #eef1f6;
+    border-color: #c8cbd2;
+  }
+  .payment-type-btn:active {
+    transform: translateY(1px);
+  }
+  .payment-type-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 10px 28px rgba(20, 62, 152, 0.12);
+  }
   .field textarea { resize: vertical; min-height: 76px; line-height: 1.5; font-size: 15px; }
   .field-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #bbb; font-size: 10.5px; }
 
@@ -841,6 +873,16 @@
         </div>
 
         <div class="field">
+          <label>Payment Type</label>
+          <div class="payment-type-row">
+            <button class="payment-type-btn" type="button" onclick="setPaymentType('CASH')">Cash</button>
+            <button class="payment-type-btn" type="button" onclick="setPaymentType('CHEQUE')">Cheque</button>
+            <button class="payment-type-btn" type="button" onclick="setPaymentType('E-WALLET')">E-Wallet</button>
+          </div>
+          <input type="hidden" id="f-payment" value="" />
+        </div>
+
+        <div class="field">
           <label>Payable Details / Item</label>
           <textarea id="f-details" placeholder="Describe the payable item or service…"></textarea>
         </div>
@@ -1015,6 +1057,13 @@ function applyDeptTheme(dept) {
   mainPg.className  = 'page dept-' + (dept || 'none');
 }
 
+function setPaymentType(type) {
+  document.getElementById('f-payment').value = type;
+  document.querySelectorAll('.payment-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toUpperCase() === type);
+  });
+}
+
 /* ─── AUTH ─── */
 function doLogin() {
   const u      = document.getElementById('inp-user').value.trim();
@@ -1119,6 +1168,8 @@ function selectDept(dept) {
   document.getElementById('filter-date').value = todayStr();
   document.getElementById('f-encoder').value = currentUser ? currentUser.toUpperCase() : '';
   document.getElementById('f-amount').value  = '';
+  document.getElementById('f-payment').value = '';
+  document.querySelectorAll('.payment-type-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById('f-details').value = '';
   document.getElementById('f-invoice').value = '';
   document.getElementById('f-notes').value   = '';
@@ -1206,23 +1257,38 @@ function renderRecords() {
 
 /* ─── SUBMIT ─── */
 function submitPayable() {
-  const date     = document.getElementById('f-date').value;
-  const encoder  = document.getElementById('f-encoder').value.trim().toUpperCase();
-  const amount   = parseFloat(document.getElementById('f-amount').value);
-  const category = document.getElementById('f-category').value;
-  const details  = document.getElementById('f-details').value.trim();
-  const invoice  = document.getElementById('f-invoice').value.trim();
-  const notes    = document.getElementById('f-notes').value.trim();
+  const date        = document.getElementById('f-date').value;
+  const encoder     = document.getElementById('f-encoder').value.trim().toUpperCase();
+  const amount      = parseFloat(document.getElementById('f-amount').value);
+  const category    = document.getElementById('f-category').value;
+  const paymentType = document.getElementById('f-payment').value;
+  const details     = document.getElementById('f-details').value.trim();
+  const invoice     = document.getElementById('f-invoice').value.trim();
+  const notes       = document.getElementById('f-notes').value.trim();
 
   if (!date)                  { showToast('Please select a date.', 'err'); return; }
   if (!encoder)               { showToast('Please enter who encoded this.', 'err'); return; }
   if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'err'); return; }
   if (!category)              { showToast('Please select a category.', 'err'); return; }
+  if (!paymentType)           { showToast('Please select a payment type.', 'err'); return; }
   if (!details)               { showToast('Please enter payable details.', 'err'); return; }
   if (!currentDept)           { showToast('No department selected.', 'err'); return; }
 
+  const normalizedDetails = details.replace(/^\((CASH|CHEQUE|E-WALLET)\)\s*/i, '').trim();
+  const taggedDetails = `(${paymentType}) ${normalizedDetails}`;
   const action  = DEPT_CONFIG[currentDept].addAction;
-  const payload = { action, date, encoder, amount, category, details, invoice, notes, dept: currentDept };
+  const payload = {
+    action,
+    date,
+    encoder,
+    amount,
+    category,
+    details: taggedDetails,
+    paymentType,
+    invoice,
+    notes,
+    dept: currentDept,
+  };
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
@@ -1264,6 +1330,8 @@ function submitPayable() {
 function clearForm() {
   document.getElementById('f-date').value    = todayStr();
   document.getElementById('f-amount').value  = '';
+  document.getElementById('f-payment').value = '';
+  document.querySelectorAll('.payment-type-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById('f-details').value = '';
   document.getElementById('f-invoice').value = '';
   document.getElementById('f-notes').value   = '';
